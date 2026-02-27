@@ -97,7 +97,17 @@ export default async (req: Request, context: Context) => {
                 const pathParts = baseUrl.pathname.split('/');
                 pathParts.pop();
                 const basePath = pathParts.join('/');
-                absoluteUrl = `${baseUrl.origin}${basePath}/${line}`;
+
+                // VTurb uses query string tokens (?hdnts=...) to authorize segments.
+                // If the master playlist had a query string, we MUST pass it down to sub-playlists!
+                let q = baseUrl.search;
+                if (q) {
+                    q = q.startsWith('?') ? q.slice(1) : q;
+                    const sep = line.includes('?') ? '&' : '?';
+                    absoluteUrl = `${baseUrl.origin}${basePath}/${line}${sep}${q}`;
+                } else {
+                    absoluteUrl = `${baseUrl.origin}${basePath}/${line}`;
+                }
             }
 
             const encodedTarget = encodeURIComponent(absoluteUrl);
