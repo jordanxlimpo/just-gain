@@ -47,12 +47,17 @@ export default async (req: Request, context: Context) => {
 
         // Fetch the original master playlist
         console.log(`Fetching from VIDEO_SOURCE: ${VIDEO_SOURCE}`);
-        // Many CDNs block raw node-fetch requests, so we spoof a browser
+        // Aggressive CDN Spoofing
         const targetHeaders = new Headers({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "*/*",
-            "Origin": new URL(req.url).origin,
-            "Referer": new URL(req.url).origin
+            "Accept": "application/x-mpegURL, application/vnd.apple.mpegurl, audio/mpegurl, video/MP2T, */*",
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Connection": "keep-alive",
+            "Origin": "https://tigre-angola.netlify.app",
+            "Referer": "https://tigre-angola.netlify.app/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "cross-site"
         });
 
         const response = await fetch(VIDEO_SOURCE, {
