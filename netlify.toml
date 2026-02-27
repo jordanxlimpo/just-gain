@@ -7,8 +7,18 @@
   node_bundler = "esbuild"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/video-token"
+  to = "/.netlify/functions/video-token"
+  status = 200
+
+[[redirects]]
+  from = "/api/stream/*/master.m3u8"
+  to = "/.netlify/functions/stream-master"
+  status = 200
+
+[[redirects]]
+  from = "/api/stream/*/segment/*"
+  to = "/.netlify/functions/stream-segment"
   status = 200
 
 [[redirects]]
