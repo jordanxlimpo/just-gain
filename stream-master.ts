@@ -4,9 +4,20 @@ import jwt from "jsonwebtoken";
 const SECRET_KEY = process.env.SECRET_KEY || "fallback_secret_key_for_dev";
 const VIDEO_SOURCE = process.env.VIDEO_SOURCE;
 
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+};
+
 export default async (req: Request, context: Context) => {
+    // Handle preflight requests
+    if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
     if (!VIDEO_SOURCE) {
-        return new Response("Missing VIDEO_SOURCE environment variable", { status: 500 });
+        return new Response("Missing VIDEO_SOURCE environment variable", { status: 500, headers: corsHeaders });
     }
 
     // Extract token from URL /api/stream/:token/master.m3u8
@@ -15,7 +26,7 @@ export default async (req: Request, context: Context) => {
     const token = urlParts[3];
 
     if (!token) {
-        return new Response("Missing token", { status: 401 });
+        return new Response("Missing token", { status: 401, headers: corsHeaders });
     }
 
     try {
@@ -35,9 +46,24 @@ export default async (req: Request, context: Context) => {
         }
 
         // Fetch the original master playlist
-        const response = await fetch(VIDEO_SOURCE);
+        console.log(`Fetching from VIDEO_SOURCE: ${VIDEO_SOURCE}`);
+        // Many CDNs block raw node-fetch requests, so we spoof a browser
+        const targetHeaders = new Headers({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Origin": new URL(req.url).origin,
+            "Referer": new URL(req.url).origin
+        });
+
+        const response = await fetch(VIDEO_SOURCE, {
+            headers: targetHeaders,
+            method: "GET"
+        });
+
         if (!response.ok) {
-            return new Response(`Failed to fetch source: ${response.status}`, { status: 502 });
+            console.error(`Fetch failed. HTTP: ${response.status} ${response.statusText}`);
+            console.error("Original URL: ", VIDEO_SOURCE);
+            return new Response(`Failed to fetch source from original server: ${response.status} ${response.statusText}`, { status: 502, headers: corsHeaders });
         }
 
         let m3u8 = await response.text();
@@ -78,13 +104,14 @@ export default async (req: Request, context: Context) => {
         return new Response(finalM3u8, {
             status: 200,
             headers: {
+                ...corsHeaders,
                 "Content-Type": "application/vnd.apple.mpegurl",
                 "Cache-Control": "no-store",
-                "Access-Control-Allow-Origin": "*"
             }
         });
 
-    } catch (error) {
-        return new Response("Unauthorized or processing error", { status: 401 });
+    } catch (error: any) {
+        console.error("Master proxy error:", error);
+        return new Response(`Unauthorized or processing error: ${error.message}`, { status: 401, headers: corsHeaders });
     }
 };
