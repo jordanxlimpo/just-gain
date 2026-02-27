@@ -106,13 +106,28 @@ const FinalStep = () => {
             console.log("Iniciando hls.js com a URL:", videoSrc);
             if (Hls.isSupported()) {
                 hls = new Hls({
-                    debug: true, // Ativado debug temporariamente para ver os logs do player
+                    debug: false,
                 });
 
                 hls.on(Hls.Events.ERROR, (event, data) => {
                     console.error("HLS.js Error:", data);
                     if (data.fatal) {
-                        setErrorMsg(`Erro fatal no HLS: ${data.type} - ${data.details}`);
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                // Pode ser erro de CORS ou erro de Servidor (500) do nosso /api/stream
+                                const httpStatus = data.response ? data.response.code : 'Desconhecido';
+                                const failedUrl = data.context ? data.context.url : (data.url || 'URL Desconhecida');
+                                setErrorMsg(`Erro de Rede ao tentar carregar o vídeo. \nHTTP: ${httpStatus} \nDetalhe: ${data.details} \nTentando acessar: ${failedUrl}`);
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                setErrorMsg(`Erro de Mídia: ${data.details}`);
+                                hls.recoverMediaError(); // tenta recuperar
+                                break;
+                            default:
+                                setErrorMsg(`Erro Fatal inexperado: ${data.type} - ${data.details}`);
+                                hls.destroy();
+                                break;
+                        }
                     }
                 });
 
